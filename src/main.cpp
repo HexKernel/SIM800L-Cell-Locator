@@ -6,7 +6,7 @@
 #include <SoftwareSerial.h>
 
 // WiFi credentials
-const char* WIFI_SSID = "YOUR_WIFI_SSID";
+const char* WIFI_SSID = "abc";
 const char* WIFI_PASS = "YOUR_WIFI_PASSWORD";
 
 // Google API Key
