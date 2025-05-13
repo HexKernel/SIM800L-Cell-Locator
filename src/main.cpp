@@ -1,13 +1,14 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#define TINY_GSM_MODEM_SIM800
 #include <TinyGsmClient.h>
 #include <ArduinoJson.h>
 #include <SoftwareSerial.h>
 
 // WiFi credentials
-const char* WIFI_SSID = "example";
-const char* WIFI_PASS = "xxxxxxx";
+const char* WIFI_SSID = "YOUR_WIFI_SSID";
+const char* WIFI_PASS = "YOUR_WIFI_PASSWORD";
 
 // Google API Key
 const char* GOOGLE_API_KEY = "YOUR_GOOGLE_API_KEY";
@@ -27,6 +28,8 @@ const char* PHONE_NUMBER = "+1234567890";
 #define MODEM_TX 17
 #define MODEM_BAUD 9600
 
+#define BOOT_BUTTON_PIN 0 // ESP32 BOOT button is GPIO 0
+
 SoftwareSerial sim800Serial(MODEM_RX, MODEM_TX);
 TinyGsm modem(sim800Serial);
 
@@ -45,6 +48,7 @@ bool getLocationFromGoogle();
 bool getAddressFromGoogle();
 void sendEmail();
 void sendSMS();
+void runProcess();
 
 void setup() {
   Serial.begin(115200);
@@ -53,35 +57,71 @@ void setup() {
   sim800Serial.begin(MODEM_BAUD);
   delay(3000);
 
-  Serial.println("Starting...");
+  pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
+
+  Serial.println("Ready. Press BOOT button to start process.");
+}
+
+void loop() {
+  static bool lastButtonState = HIGH;
+  bool buttonState = digitalRead(BOOT_BUTTON_PIN);
+
+  // Button pressed (active LOW)
+  if (lastButtonState == HIGH && buttonState == LOW) {
+    delay(50); // debounce
+    if (digitalRead(BOOT_BUTTON_PIN) == LOW) {
+      runProcess();
+      // Wait for button release to avoid retrigger
+      while (digitalRead(BOOT_BUTTON_PIN) == LOW) {
+        delay(10);
+      }
+      Serial.println("Ready. Press BOOT button to start process.");
+    }
+  }
+  lastButtonState = buttonState;
+}
+
+void runProcess() {
+  Serial.println("=== Process started ===");
 
   // Try WiFi first
+  Serial.println("Connecting to WiFi...");
   if (connectWiFi()) {
     Serial.println("WiFi connected.");
   } else {
     Serial.println("WiFi not available, trying SIM800L GPRS...");
     if (!connectGPRS()) {
       Serial.println("GPRS connection failed!");
-      while (1);
+      return;
     }
+    Serial.println("GPRS connected.");
   }
 
+  Serial.println("Getting cell info...");
   if (getCellInfo()) {
-    Serial.println("Cell info retrieved.");
+    Serial.println("Cell info retrieved:");
+    Serial.println(cellInfo);
   } else {
     Serial.println("Failed to get cell info.");
+    return;
   }
 
+  Serial.println("Getting location from Google...");
   if (getLocationFromGoogle()) {
-    Serial.println("Location info retrieved.");
+    Serial.println("Location info retrieved:");
+    Serial.println(locationInfo);
   } else {
     Serial.println("Failed to get location info.");
+    return;
   }
 
+  Serial.println("Getting address from Google...");
   if (getAddressFromGoogle()) {
-    Serial.println("Address info retrieved.");
+    Serial.println("Address info retrieved:");
+    Serial.println(addressInfo);
   } else {
     Serial.println("Failed to get address info.");
+    return;
   }
 
   // Generate Google Maps link
@@ -91,14 +131,16 @@ void setup() {
   allInfo = "Cell Info:\n" + cellInfo + "\nLocation (Lat,Lng):\n" + locationInfo +
             "\nAddress:\n" + addressInfo + "\nGoogle Maps:\n" + googleMapLink;
 
+  Serial.println("=== All Info ===");
   Serial.println(allInfo);
 
+  Serial.println("Sending email...");
   sendEmail();
-  sendSMS();
-}
 
-void loop() {
-  // Nothing to do in loop
+  Serial.println("Sending SMS...");
+  sendSMS();
+
+  Serial.println("=== Process finished ===");
 }
 
 // Connect to WiFi
