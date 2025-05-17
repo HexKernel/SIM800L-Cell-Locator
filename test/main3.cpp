@@ -53,6 +53,51 @@ String now() {
   return String(buf);
 }
 
+bool isCengDataComplete(const String& cengResponse) {
+  int cengIdx = 0;
+  while ((cengIdx = cengResponse.indexOf("+CENG:", cengIdx)) != -1) {
+    int lineEnd = cengResponse.indexOf("\n", cengIdx);
+    if (lineEnd == -1) lineEnd = cengResponse.length();
+    String line = cengResponse.substring(cengIdx, lineEnd);
+    line.trim();
+
+    // Only process lines with a quoted data section (cell info lines)
+    int comma1 = line.indexOf(",");
+    int q1 = line.indexOf("\"", comma1);
+    int q2 = line.indexOf("\"", q1 + 1);
+    if (q1 == -1 || q2 == -1) {
+      cengIdx = lineEnd; // skip header or malformed lines
+      continue;
+    }
+    String data = line.substring(q1 + 1, q2);
+    String values[6];
+    int k = 0;
+    int start = 0;
+    for (int j = 0; j < 5; ++j) {
+      int comma = data.indexOf(",", start);
+      if (comma == -1) {
+        values[k++] = data.substring(start);
+        break;
+      }
+      values[k++] = data.substring(start, comma);
+      start = comma + 1;
+    }
+    while (k < 6) values[k++] = "";
+
+    // Check for completeness: no column should be empty, "0000", or "ffff"
+    for (int i = 0; i < 4; ++i) { // Only check MCC, MNC, LAC, CID
+      String v = values[i];
+      v.trim();
+      v.toLowerCase();
+      if (v.length() == 0 || v == "0000" || v == "ffff") {
+        return false;
+      }
+    }
+    cengIdx = lineEnd;
+  }
+  return true;
+}
+
 bool getCellInfo() {
   Serial.println("\n----------------- SIM800L Section -----------------");
   Serial.println(now() + "Getting cell info...");
@@ -118,24 +163,35 @@ bool getCellInfo() {
 
   String cengResponse = "";
   bool cengSuccess = false;
+  int successfulRound = -1;
   for (int i = 0; i < 5; ++i) {
-    Serial.println(now() + "Attempt " + String(i + 1) + " to query cell info...");
+    Serial.println(now() + "[INFO] Attempt " + String(i + 1) + " checking completeness of AT+CENG?...");
     sendAT("AT+CENG?");
-    cengResponse = readAT(3000); // Increased timeout
+    cengResponse = readAT(3000);
 
-    if (cengResponse.indexOf("+CENG:") != -1) {
+    if (cengResponse.indexOf("+CENG:") != -1 && isCengDataComplete(cengResponse)) {
       cengSuccess = true;
+      successfulRound = i + 1;
+      Serial.println(now() + "[INFO] Round " + String(successfulRound) + " checking was successful.");
       break;
     } else {
-      Serial.println(now() + "[WARN] No CENG info. Retrying...");
-      delay(500); // Wait before retrying
+      Serial.println(now() + "[WARN] CENG data incomplete, retrying...");
+      delay(500);
     }
   }
 
   if (!cengSuccess) {
-    Serial.println(now() + "[ERROR] Failed to retrieve cell info after multiple attempts.");
+    Serial.println(now() + "[ERROR] Failed to retrieve complete cell info after multiple attempts.");
     return false;
   }
+
+  // Show parsing log and loading animation
+  Serial.println(now() + "[INFO] Parsing CENG data...");
+  for (int i = 0; i < 3; ++i) {
+    Serial.print(".");
+    delay(300);
+  }
+  Serial.println();
 
   // Parse and display CENG data
   // First, collect all cell lines into a map by index
@@ -215,7 +271,11 @@ bool getCellInfo() {
       String cidHex = values[3];
       long cidDec = strtol(cidHex.c_str(), NULL, 16);
       Serial.println(now() + "[INFO] CID: " + cidHex + " (hex) / " + String(cidDec) + " (dec)");
-      if (values[4].length() > 0) Serial.println(now() + "[INFO] RxLev: " + values[4] + " dBm");
+      if (values[4].length() > 0) {
+        int rxLev = values[4].toInt();
+        int rxDbm = -113 + (2 * rxLev);
+        Serial.println(now() + "[INFO] RxLev: " + values[4] + " (unit) / " + String(rxDbm) + " (dBm)");
+      }
       if (values[5].length() > 0) Serial.println(now() + "[INFO] Timing Advance: " + values[5] + " units");
     } else {
       Serial.println(now() + "[WARN] Incomplete data for cell " + String(idx));
