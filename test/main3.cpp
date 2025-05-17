@@ -110,122 +110,117 @@ bool getCellInfo() {
     return false;
   }
 
-  // 3. AT+CREG=2
-  Serial.println(now() + "Setting CREG mode...");
-  sendAT("AT+CREG=2");
-  readAT(1000);
+  // Use AT+CENG? instead of AT+CREG, AT+CSQ, AT+COPS
+  Serial.println(now() + "Getting cell info using AT+CENG...");
+  sendAT("AT+CENG=3,1"); // Set CENG mode
 
-  // 4. AT+CREG?
-  Serial.println(now() + "Querying registration and cell info...");
-  sendAT("AT+CREG?");
-  String cregResp = readAT(1500);
+  String cengResponse = "";
+  bool cengSuccess = false;
+  for (int i = 0; i < 5; ++i) {
+    Serial.println(now() + "Attempt " + String(i + 1) + " to query cell info...");
+    sendAT("AT+CENG?");
+    cengResponse = readAT(1500);
 
-  // Parse LAC and CID from +CREG: 2,5,"0495","27B9"
-  String lac = "", cid = "";
-  int cregIdx = cregResp.indexOf("+CREG:");
-  if (cregIdx != -1) {
-    int q1 = cregResp.indexOf("\"", cregIdx);
-    int q2 = cregResp.indexOf("\"", q1 + 1);
-    int q3 = cregResp.indexOf("\"", q2 + 1);
-    int q4 = cregResp.indexOf("\"", q3 + 1);
-    if (q1 != -1 && q2 != -1 && q3 != -1 && q4 != -1) {
-      lac = cregResp.substring(q1 + 1, q2);
-      cid = cregResp.substring(q3 + 1, q4);
-      long lacDec = strtol(lac.c_str(), NULL, 16);
-      long cidDec = strtol(cid.c_str(), NULL, 16);
-      g_lac = lacDec;
-      g_cid = cidDec;
-      Serial.println(now() + "[INFO] LAC: " + lac + " (hex) / " + String(lacDec) + " (dec)");
-      Serial.println(now() + "[INFO] CID: " + cid + " (hex) / " + String(cidDec) + " (dec)");
-      lac = String(lacDec);
-      cid = String(cidDec);
-    }
-  } else {
-    Serial.println(now() + "[ERROR] Failed to parse LAC/CID from SIM800L response.");
-  }
+    // Print raw CENG response
+    Serial.println(now() + "Raw AT+CENG? Response:\n" + cengResponse);
 
-  // 5. AT+CSQ
-  Serial.println(now() + "Querying signal quality...");
-  sendAT("AT+CSQ");
-  String csqResp = readAT(1000);
-
-  // Parse signal quality
-  int16_t signalQuality = 99;
-  int csqIdx = csqResp.indexOf("+CSQ:");
-  if (csqIdx != -1) {
-    int commaIdx = csqResp.indexOf(",", csqIdx);
-    if (commaIdx != -1) {
-      String sq = csqResp.substring(csqIdx + 6, commaIdx);
-      signalQuality = sq.toInt();
+    if (cengResponse.indexOf("+CENG:") != -1) {
+      cengSuccess = true;
+      break;
+    } else {
+      Serial.println(now() + "[WARN] No CENG info. Retrying...");
+      delay(500); // Wait before retrying
     }
   }
-  Serial.println(now() + "[INFO] Signal Quality: " + String(signalQuality));
 
-  // 6. AT+COPS=3,2 (set numeric format for operator)
-  Serial.println(now() + "Setting operator format to numeric (AT+COPS=3,2)...");
-  sendAT("AT+COPS=3,2");
-  String copsSetResp = readAT(1000);
-  if (copsSetResp.indexOf("OK") == -1) {
-    Serial.println(now() + "[ERROR] Failed to set operator format. Cannot get MCC/MNC.");
+  if (!cengSuccess) {
+    Serial.println(now() + "[ERROR] Failed to retrieve cell info after multiple attempts.");
     return false;
   }
 
-  // 7. AT+COPS? (get operator numeric code)
-  Serial.println(now() + "Querying operator numeric code...");
-  sendAT("AT+COPS?");
-  String copsResp = readAT(1000);
-  String operatorCode = "";
+  // Parse and display CENG data
+  int cengIdx = 0;
+  while ((cengIdx = cengResponse.indexOf("+CENG:", cengIdx)) != -1) {
+    int lineEnd = cengResponse.indexOf("\n", cengIdx);
+    if (lineEnd == -1) lineEnd = cengResponse.length();
+    String line = cengResponse.substring(cengIdx, lineEnd);
+    line.trim();
+
+    int comma1 = line.indexOf(",");
+    if (comma1 == -1) {
+      cengIdx++;
+      continue;
+    }
+    int index = line.substring(6, comma1).toInt();
+
+    int q1 = line.indexOf("\"", comma1);
+    int q2 = line.indexOf("\"", q1 + 1);
+    if (q1 == -1 || q2 == -1) {
+      cengIdx++;
+      continue;
+    }
+    String data = line.substring(q1 + 1, q2);
+    String values[6];
+    int k = 0;
+    int start = 0;
+    for (int j = 0; j < 5; ++j) {
+      int comma = data.indexOf(",", start);
+      if (comma == -1) break;
+      values[k++] = data.substring(start, comma);
+      start = comma + 1;
+    }
+    values[k] = data.substring(start);
+
+    Serial.println(now() + "----------------- Cell " + String(index) + " -----------------");
+    if (index == 0) {
+      Serial.println(now() + "[INFO] This is the connected cell.");
+
+      // Get operator name for the connected cell
+      Serial.println(now() + "Querying operator name...");
+      sendAT("AT+COPS?");
+      String copsAlphaResp = readAT(1000);
+      String operatorName = "";
+      int copsAlphaIdx = copsAlphaResp.indexOf("\"");
+      int copsAlphaEnd = copsAlphaResp.indexOf("\"", copsAlphaIdx + 1);
+      if (copsAlphaIdx != -1 && copsAlphaEnd != -1) {
+        operatorName = copsAlphaResp.substring(copsAlphaIdx + 1, copsAlphaEnd);
+        Serial.println(now() + "[INFO] Operator Name: " + operatorName);
+      } else {
+        Serial.println(now() + "[INFO] Operator Name: Not found");
+      }
+    }
+
+    if (k == 5) {
+      if (values[0].length() > 0) Serial.println(now() + "[INFO] MCC: " + values[0]);
+      if (values[1].length() > 0) Serial.println(now() + "[INFO] MNC: " + values[1]);
+
+      if (values[2].length() > 0) {
+        String lacHex = values[2];
+        long lacDec = strtol(lacHex.c_str(), NULL, 16);
+        Serial.println(now() + "[INFO] LAC: " + lacHex + " (hex) / " + String(lacDec) + " (dec)");
+      }
+
+      if (values[3].length() > 0) {
+        String cidHex = values[3];
+        long cidDec = strtol(cidHex.c_str(), NULL, 16);
+        Serial.println(now() + "[INFO] CID: " + cidHex + " (hex) / " + String(cidDec) + " (dec)");
+      }
+
+      if (values[4].length() > 0) Serial.println(now() + "[INFO] RxLev: " + values[4] + " dBm");
+      if (values[5].length() > 0) Serial.println(now() + "[INFO] Timing Advance: " + values[5] + " units");
+    } else {
+      Serial.println(now() + "[WARN] Incomplete data for cell " + String(index));
+    }
+
+    cengIdx++;
+  }
+
+  //Clear global variables
   g_mcc = 0;
   g_mnc = 0;
-  int copsNumIdx = copsResp.indexOf("\"");
-  int copsNumEnd = copsResp.indexOf("\"", copsNumIdx + 1);
-  if (copsNumIdx != -1 && copsNumEnd != -1) {
-    String copsNum = copsResp.substring(copsNumIdx + 1, copsNumEnd);
-    operatorCode = copsNum;
-    if (copsNum.length() >= 5) {
-      g_mcc = copsNum.substring(0, 3).toInt();
-      g_mnc = copsNum.substring(3).toInt();
-      Serial.println(now() + "[INFO] MCC: " + String(g_mcc));
-      Serial.println(now() + "[INFO] MNC: " + String(g_mnc));
-    }
-  }
-  Serial.println(now() + "[INFO] Operator Numeric Code: " + operatorCode);
-
-  // 8. AT+COPS=3,0 (set alphanumeric format for operator)
-  Serial.println(now() + "Setting operator format to alphanumeric (AT+COPS=3,0)...");
-  sendAT("AT+COPS=3,0");
-  String copsSetAlphaResp = readAT(1000);
-  if (copsSetAlphaResp.indexOf("OK") == -1) {
-    Serial.println(now() + "[ERROR] Failed to set operator format. Cannot get operator name.");
-    return false;
-  }
-
-  // 9. AT+COPS? (get operator name)
-  Serial.println(now() + "Querying operator name...");
-  sendAT("AT+COPS?");
-  String copsAlphaResp = readAT(1000);
-  String operatorName = "";
-  int copsAlphaIdx = copsAlphaResp.indexOf("\"");
-  int copsAlphaEnd = copsAlphaResp.indexOf("\"", copsAlphaIdx + 1);
-  if (copsAlphaIdx != -1 && copsAlphaEnd != -1) {
-    operatorName = copsAlphaResp.substring(copsAlphaIdx + 1, copsAlphaEnd);
-    Serial.println(now() + "[INFO] Operator Name: " + operatorName);
-  } else {
-    Serial.println(now() + "[INFO] Operator Name: Not found");
-  }
-
-  // Estimate distance (very rough)
-  float frequency = 900.0;
-  float distance = pow(10, (27.55 - (20 * log10(frequency)) + abs(signalQuality)) / 20);
-
-  cellInfo = "Operator Name: " + operatorName +
-             "\nOperator Numeric Code: " + operatorCode +
-             "\nMCC: " + String(g_mcc) +
-             "\nMNC: " + String(g_mnc) +
-             "\nSignal Quality: " + String(signalQuality) +
-             "\nLAC: " + lac +
-             "\nCID: " + cid +
-             "\nApprox. Distance to Tower: " + String(distance, 1) + " meters";
+  g_lac = 0;
+  g_cid = 0;
+  cellInfo = "";
 
   Serial.println(now() + "Cell info query complete.");
   return true;
