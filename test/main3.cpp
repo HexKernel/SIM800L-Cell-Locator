@@ -208,3 +208,20 @@ void setup() {
   delay(3000);
   Serial.println("Ready. Type 'y' to get SIM800L cell info.");
 }
+
+void loop() {
+  static String input = "";
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\n' || c == '\r') {
+      input.trim();
+      if (input.equalsIgnoreCase("y") || input.equalsIgnoreCase("yes")) {
+        getCellInfo();
+        Serial.println("Ready. Type 'y' to get SIM800L cell info.");
+      }
+      input = "";
+    } else {
+      input += c;
+    }
+  }
+}
