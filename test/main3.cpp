@@ -27,3 +27,11 @@
  *
  * @return true if all required information was successfully retrieved and parsed, false otherwise.
  */
+#include <Arduino.h>
+#include <SoftwareSerial.h>
+#include <math.h>
+
+// SIM800L pins and baud
+#define MODEM_RX 16
+#define MODEM_TX 17
+#define MODEM_BAUD 9600
