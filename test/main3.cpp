@@ -35,3 +35,20 @@
 #define MODEM_RX 16
 #define MODEM_TX 17
 #define MODEM_BAUD 9600
+
+SoftwareSerial sim800Serial(MODEM_RX, MODEM_TX);
+
+// Globals for parsed cell info
+int g_mcc = 0, g_mnc = 0, g_lac = 0, g_cid = 0;
+String cellInfo = "";
+
+// Timestamp helper
+String now() {
+  unsigned long ms = millis();
+  unsigned long s = ms / 1000;
+  unsigned long m = s / 60;
+  unsigned long h = m / 60;
+  char buf[16];
+  sprintf(buf, "[%02lu:%02lu:%02lu] ", h % 24, m % 60, s % 60);
+  return String(buf);
+}
