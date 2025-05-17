@@ -1,3 +1,27 @@
+/**
+ * @file main2.cpp
+ * @brief Serial bridge between a PC and SIM800L GSM module using Arduino.
+ *
+ * This program sets up a serial bridge between a PC (via the main Serial port)
+ * and a SIM800L GSM module (via SoftwareSerial). It allows the user to send AT
+ * commands from the PC to the SIM800L and receive responses, filtering out
+ * non-printable characters from the SIM800L output.
+ *
+ * - MODEM_RX: GPIO pin connected to SIM800L TX (default: 16)
+ * - MODEM_TX: GPIO pin connected to SIM800L RX (default: 17)
+ * - MODEM_BAUD: Baud rate for SIM800L communication (default: 9600)
+ * - PC_BAUD: Baud rate for PC serial communication (default: 115200)
+ *
+ * Functionality:
+ * - Forwards all data from the PC Serial to the SIM800L.
+ * - Forwards only printable ASCII characters and common control characters
+ *   (CR, LF) from the SIM800L to the PC Serial, filtering out garbage data.
+ *
+ * Usage:
+ * - Connect the PC to the Arduino via USB.
+ * - Connect the SIM800L module to the specified RX/TX pins.
+ * - Open a serial monitor at 115200 baud to interact with the SIM800L.
+ */
 #include <Arduino.h>
 #include <SoftwareSerial.h>
 
