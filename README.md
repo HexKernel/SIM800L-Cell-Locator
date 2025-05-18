@@ -3,3 +3,5 @@ This program, designed for the ESP32 microcontroller and paired with a SIM800L G
 It then uses Google’s Geolocation API to approximate the device’s latitude and longitude, followed by additional API calls to retrieve the corresponding address (via reverse geocoding), local time and timezone, and weather conditions for that location. Connectivity is established through WiFi when available, with automatic fallback to GPRS via SIM800L if needed.
 
 Custom DNS servers are used for both types of connections to ensure stable resolution. Once the data is gathered, it is transmitted via SMS using SIM800L, and optionally via email—though the email feature is currently a placeholder requiring further integration with a library like ESP_Mail_Client. 
+
+Configuration parameters such as WiFi credentials, Google API key, email, phone number, SIM800L pin assignments, and baud rate are defined through constants in the code. The system relies on several libraries including WiFi.h, HTTPClient.h, TinyGsmClient.h, ArduinoJson.h, and SoftwareSerial.h. 
