@@ -1,1 +1,1 @@
-to be added
+This program, designed for the ESP32 microcontroller and paired with a SIM800L GSM module, functions as a comprehensive cellular-based location, weather, and notification system. Upon activation—either by pressing the ESP32's BOOT button or sending the character 'y' via Serial—the device collects information about surrounding cell towers, including LAC, CID, MCC, MNC, signal strength, and network operator.
