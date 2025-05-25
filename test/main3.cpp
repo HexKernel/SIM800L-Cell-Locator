@@ -36,7 +36,7 @@
 #define MODEM_TX 17
 #define MODEM_BAUD 9600
 
-HardwareSerial sim800Serial(2); // Use UART2
+
 
 // Globals for parsed cell info
 int g_mcc = 0, g_mnc = 0, g_lac = 0, g_cid = 0;
