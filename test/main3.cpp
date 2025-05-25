@@ -38,7 +38,9 @@
 
 HardwareSerial sim800Serial(2); // Use UART2
 
-
+// Globals for parsed cell info
+int g_mcc = 0, g_mnc = 0, g_lac = 0, g_cid = 0;
+String cellInfo = "";
 
 // Timestamp helper
 String now() {
