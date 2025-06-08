@@ -32,7 +32,7 @@
 HardwareSerial sim800Serial(2); // Use UART2 for SIM800L
 
 void setup() {
-  Serial.begin(PC_BAUD); // Set to 115200 for laptop
+  Serial.begin(PC_BAUD);
   sim800Serial.begin(MODEM_BAUD, SERIAL_8N1, MODEM_RX, MODEM_TX); // 9600 for SIM800L
   delay(3000);
   Serial.println("SIM800L Serial Bridge Ready.");
