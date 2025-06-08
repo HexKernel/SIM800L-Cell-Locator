@@ -52,7 +52,6 @@ void loop() {
     if ((c >= 32 && c <= 126) || c == '\r' || c == '\n') {
       Serial.write(c);
     }
-    // Optionally, print a warning for filtered garbage
     // else Serial.print("[?]");
   }
 }
