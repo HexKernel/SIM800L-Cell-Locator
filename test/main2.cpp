@@ -33,7 +33,7 @@ HardwareSerial sim800Serial(2);
 
 void setup() {
   Serial.begin(PC_BAUD);
-  sim800Serial.begin(MODEM_BAUD, SERIAL_8N1, MODEM_RX, MODEM_TX); // 9600 for SIM800L
+  sim800Serial.begin(MODEM_BAUD, SERIAL_8N1, MODEM_RX, MODEM_TX); 
   delay(3000);
   Serial.println("SIM800L Serial Bridge Ready.");
 }
