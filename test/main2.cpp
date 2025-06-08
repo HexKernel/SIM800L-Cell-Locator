@@ -29,7 +29,7 @@
 #define MODEM_BAUD 9600
 #define PC_BAUD 115200  // Default baud rate for laptop serial
 
-HardwareSerial sim800Serial(2); // Use UART2 for SIM800L
+HardwareSerial sim800Serial(2); 
 
 void setup() {
   Serial.begin(PC_BAUD);
