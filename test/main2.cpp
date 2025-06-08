@@ -52,6 +52,5 @@ void loop() {
     if ((c >= 32 && c <= 126) || c == '\r' || c == '\n') {
       Serial.write(c);
     }
-    // else Serial.print("[?]");
   }
 }
