@@ -27,7 +27,7 @@
 #define MODEM_RX 16
 #define MODEM_TX 17
 #define MODEM_BAUD 9600
-#define PC_BAUD 115200  // Default baud rate for laptop serial
+#define PC_BAUD 115200  
 
 HardwareSerial sim800Serial(2); 
 
