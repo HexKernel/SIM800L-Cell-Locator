@@ -27,30 +27,32 @@
 #define MODEM_RX 16
 #define MODEM_TX 17
 #define MODEM_BAUD 9600
-#define PC_BAUD 115200  
+#define PC_BAUD 115200  // Default baud rate for laptop serial
 
-HardwareSerial sim800Serial(2); 
+HardwareSerial sim800Serial(2); // Use UART2 for SIM800L
 
 void setup() {
   Serial.begin(PC_BAUD);
-  sim800Serial.begin(MODEM_BAUD, SERIAL_8N1, MODEM_RX, MODEM_TX); 
+  sim800Serial.begin(MODEM_BAUD, SERIAL_8N1, MODEM_RX, MODEM_TX);
   delay(3000);
   Serial.println("SIM800L Serial Bridge Ready.");
+  // Flush any startup garbage
+  while (Serial.available()) Serial.read();
+  while (sim800Serial.available()) sim800Serial.read();
 }
 
 void loop() {
-  // Pass data from Serial (laptop) to SIM800L
-  while (Serial.available()) {
-    char c = Serial.read();
-    sim800Serial.write(c);
+  // Forward data from PC to SIM800L
+  int c;
+  while ((c = Serial.read()) != -1) {
+    sim800Serial.write((char)c);
   }
 
-  // Pass filtered data from SIM800L to Serial (laptop)
-  while (sim800Serial.available()) {
-    char c = sim800Serial.read();
-    // Only forward printable ASCII and common control chars
+  // Forward filtered data from SIM800L to PC
+  while ((c = sim800Serial.read()) != -1) {
     if ((c >= 32 && c <= 126) || c == '\r' || c == '\n') {
-      Serial.write(c);
+      Serial.write((char)c);
     }
+    // else: filtered out
   }
 }
